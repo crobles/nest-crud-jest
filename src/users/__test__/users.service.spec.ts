@@ -6,7 +6,6 @@ import { User } from '../entity/user.entity';
 import { HttpService } from '@nestjs/axios';
 import { of } from 'rxjs';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { execSync } from 'child_process';
 import { HttpModule } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 
@@ -20,23 +19,18 @@ describe('UsersService', () => {
 
   beforeAll(async () => {
     try {
-      console.log('Iniciando MySQL con Docker Compose...');
-      execSync('docker-compose -f docker-compose.test.yml up -d');
-
-      console.log('Esperando a que MySQL esté listo...');
-      await new Promise((resolve) => setTimeout(resolve, 15000));
-
       module = await Test.createTestingModule({
         imports: [
           TypeOrmModule.forRoot({
             type: 'mysql',
-            host: 'localhost',
+            host: '127.0.0.1', // Usar IPv4 explícitamente
             port: 3307,
             username: 'testuser',
             password: 'testpass',
             database: 'testdb',
             entities: [User],
             synchronize: true,
+            connectTimeout: 60000,
           }),
           TypeOrmModule.forFeature([User]),
           HttpModule,
@@ -44,16 +38,14 @@ describe('UsersService', () => {
         providers: [UsersService],
       }).compile();
 
-      console.log('Conexión a MySQL establecida');
-
       service = module.get<UsersService>(UsersService);
       userRepository = module.get<Repository<User>>(getRepositoryToken(User));
       httpService = module.get<HttpService>(HttpService);
     } catch (error) {
-      console.error('Error en la configuración:', error);
-      try {
-        execSync('docker-compose -f docker-compose.test.yml down');
-      } catch {}
+      console.error(
+        'Error en la configuración del módulo UsersService:',
+        error,
+      );
       throw error;
     }
   });
@@ -63,10 +55,8 @@ describe('UsersService', () => {
       if (module) {
         await module.close();
       }
-      console.log('Deteniendo MySQL...');
-      execSync('docker-compose -f docker-compose.test.yml down');
     } catch (error) {
-      console.error('Error al limpiar recursos:', error);
+      console.error('Error al cerrar el módulo UsersService:', error);
     }
   });
 

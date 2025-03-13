@@ -10,4 +10,17 @@ module.exports = {
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: './coverage',
+  coveragePathIgnorePatterns: [
+    'node_modules',
+    'coverage',
+    '.*/lcov-report/.*',
+    'main.ts',
+    'app.module.ts',
+    'test',
+    'dist',
+    '.*\\.module\\.ts',
+    '.*\\.config\\.ts',
+  ],
+  globalSetup: '<rootDir>/../jest-global-setup.ts',
+  globalTeardown: '<rootDir>/../jest-global-teardown.ts',
 };

@@ -1,8 +1,7 @@
-version: '3'
-
 services:
   mysql-test:
     image: mysql:8.0
+    container_name: mysql-test-container
     environment:
       MYSQL_DATABASE: testdb
       MYSQL_USER: testuser
@@ -10,3 +9,19 @@ services:
       MYSQL_ROOT_PASSWORD: testpass
     ports:
       - '3307:3306'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-u',
+          'testuser',
+          '-ptestpass',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    command: --default-authentication-plugin=mysql_native_password

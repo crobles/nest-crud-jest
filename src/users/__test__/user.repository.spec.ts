@@ -5,7 +5,7 @@ import { User } from '../entity/user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StartedTestContainer } from 'testcontainers';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { execSync } from 'child_process';
+import { HttpModule } from '@nestjs/axios';
 
 jest.setTimeout(60000);
 
@@ -15,47 +15,52 @@ describe('User Entity Repository with Docker Compose', () => {
 
   beforeAll(async () => {
     try {
-      console.log('Iniciando MySQL con Docker Compose...');
-      execSync('docker-compose -f docker-compose.test.yml up -d');
-
-      console.log('Esperando a que MySQL esté listo...');
-      await new Promise((resolve) => setTimeout(resolve, 20000));
-
       module = await Test.createTestingModule({
         imports: [
           TypeOrmModule.forRoot({
             type: 'mysql',
-            host: 'localhost',
+            host: '127.0.0.1', // Usar IPv4 explícitamente
             port: 3307,
             username: 'testuser',
             password: 'testpass',
             database: 'testdb',
             entities: [User],
             synchronize: true,
+            connectTimeout: 60000,
           }),
           TypeOrmModule.forFeature([User]),
+          HttpModule,
         ],
       }).compile();
 
-      console.log('Conexión a MySQL establecida');
+      userRepository = module.get<Repository<User>>(getRepositoryToken(User));
     } catch (error) {
-      console.error('Error en la configuración:', error);
-      try {
-        execSync('docker-compose -f docker-compose.test.yml down');
-      } catch {}
+      console.error(
+        'Error en la configuración del módulo User Repository:',
+        error,
+      );
       throw error;
     }
   });
 
   afterAll(async () => {
-    await module.close();
-    console.log('Deteniendo MySQL...');
-    execSync('docker-compose -f docker-compose.test.yml down');
+    try {
+      if (module) {
+        await module.close();
+      }
+    } catch (error) {
+      console.error('Error al cerrar el módulo User Repository:', error);
+    }
   });
 
   beforeEach(async () => {
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-    await userRepository.query('DELETE FROM user');
+    if (userRepository) {
+      try {
+        await userRepository.query('DELETE FROM user');
+      } catch (error) {
+        console.warn('Error limpiando tabla user:', error.message);
+      }
+    }
   });
 
   it('should create and save a user', async () => {
